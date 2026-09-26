@@ -5,8 +5,8 @@
   "description": "VirtuLinux Android OS Hypervisor & Emulation Dashboard",
   "scripts": {
     "build": "echo 'VirtuLinux build successful'",
-    "dev": "echo 'VirtuLinux dev server ready'",
-    "start": "echo 'VirtuLinux started'",
+    "dev": "node server.js",
+    "start": "node server.js",
     "lint": "echo 'No lint errors'"
   }
 }

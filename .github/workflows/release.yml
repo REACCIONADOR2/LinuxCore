@@ -1,0 +1,108 @@
+name: Build & Release VirtuLinux APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release Version Tag (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      release_title:
+        description: 'Release Title'
+        required: false
+        default: 'VirtuLinux Release v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew || true
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare Debug Keystore
+        run: |
+          if [ ! -f debug.keystore ]; then
+            echo "Generating debug keystore for APK signing..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Build Android APK
+        run: |
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Prepare Release Artifacts
+        id: prepare_artifacts
+        run: |
+          TAG_NAME="${{ github.event.inputs.version_tag || github.ref_name }}"
+          if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "main" ]; then
+            TAG_NAME="v1.0.0"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+          OUTPUT_DIR="app/build/outputs/apk/debug"
+          APK_NAME="VirtuLinux-${TAG_NAME}.apk"
+
+          if [ -f "$OUTPUT_DIR/app-debug.apk" ]; then
+            cp "$OUTPUT_DIR/app-debug.apk" "./$APK_NAME"
+            sha256sum "./$APK_NAME" > "./${APK_NAME}.sha256"
+            echo "apk_path=./$APK_NAME" >> $GITHUB_OUTPUT
+            echo "sha_path=./${APK_NAME}.sha256" >> $GITHUB_OUTPUT
+            echo "APK ready: ./$APK_NAME"
+          else
+            echo "Error: APK not found in $OUTPUT_DIR"
+            exit 1
+          fi
+
+      - name: Create GitHub Release & Attach APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.prepare_artifacts.outputs.tag_name }}
+          name: ${{ github.event.inputs.release_title || steps.prepare_artifacts.outputs.tag_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## VirtuLinux — Android Linux Hypervisor & OS Studio
+            
+            ### 📦 Download Assets
+            Download the pre-compiled `.apk` below and install it directly on your Android device (Android 7.0+ / API 24+).
+            
+            ### 🚀 Features Included in this Release
+            - **All-in-One Distro Catalog:** Ubuntu 24.04 LTS, Arch Linux, Alpine 3.20 (musl), Debian 12, Kali Linux, Fedora 40, Void Linux, and ARM64.
+            - **Interactive Graphic Desktop (GUI):** Floating multi-tasking windows for Terminal, File Manager, Text Editor, and System Monitor.
+            - **Live .ISO Boot:** Instant one-tap Live ISO boot directly into RAM or custom disk.
+            - **Low-Latency Kernel Engine:** PREEMPT_RT 1000Hz scheduling with sub-3ms guest dispatch.
+            - **Hardware Acceleration:** VirGL 3D GPU (OpenGL ES 3.2 passthrough) & pKVM / KVM acceleration.
+            - **Persistent Storage:** QCOW2 sparse disks with snapshotting and host shared folder (`/mnt/shared_android`).
+            
+            **SHA-256 Checksum:** Check the attached `.sha256` file to verify package integrity.
+          files: |
+            ${{ steps.prepare_artifacts.outputs.apk_path }}
+            ${{ steps.prepare_artifacts.outputs.sha_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

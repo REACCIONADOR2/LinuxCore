@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VirtuLinux — Android Linux Hypervisor</title>
+    <style>
+        :root {
+            --carbon-dark: #0F1117;
+            --carbon-surface: #161922;
+            --carbon-surface-variant: #1E2330;
+            --carbon-border: #2A3144;
+            --terminal-green: #00E676;
+            --terminal-green-dim: #00A352;
+            --neon-cyan: #00E5FF;
+            --neon-cyan-dim: #0097A7;
+            --electric-blue: #3D7AF5;
+            --accent-amber: #FFB300;
+            --accent-red: #FF3D57;
+            --text-primary: #F0F4FC;
+            --text-secondary: #9BA3B8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--carbon-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
+        }
+
+        /* Top Header */
+        header {
+            background: linear-gradient(180deg, var(--carbon-dark), var(--carbon-surface));
+            border-bottom: 1px solid var(--carbon-border);
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chip-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(0, 230, 118, 0.15);
+            border: 1px solid rgba(0, 230, 118, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .brand-title {
+            font-size: 15px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-kvm {
+            background: rgba(0, 229, 255, 0.15);
+            color: var(--neon-cyan);
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+
+        .brand-subtitle {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-pill {
+            background: var(--carbon-surface-variant);
+            border: 0.5px solid var(--carbon-border);
+            border-radius: 12px;
+            padding: 4px 8px;
+            font-size: 10px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--terminal-green);
+        }
+
+        .pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--terminal-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.7; }
+        }
+
+        .telemetry-bar {
+            background: rgba(15, 17, 23, 0.8);
+            border: 0.5px solid var(--carbon-border);
+            border-radius: 6px;
+            padding: 6px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        /* Screen Viewport */
+        #viewport {
+            flex: 1;
+            position: relative;
+            overflow-y: auto;
+            background: var(--carbon-dark);
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Bottom Nav */
+        nav {
+            height: 64px;
+            background: var(--carbon-dark);
+            border-top: 1px solid var(--carbon-border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-shrink: 0;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        .nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 10px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn .icon {
+            font-size: 18px;
+        }
+
+        .nav-btn.active {
+            color: var(--terminal-green);
+            background: rgba(0, 230, 118, 0.12);
+            font-weight: bold;
+        }
+
+        /* Common UI Elements */
+        .btn {
+            background: var(--carbon-surface-variant);
+            color: var(--text-primary);
+            border: 1px solid var(--carbon-border);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: var(--terminal-green);
+            color: var(--carbon-dark);
+            border: none;
+        }
+
+        .btn-cyan {
+            background: var(--neon-cyan);
+            color: var(--carbon-dark);
+            border: none;
+        }
+
+        .btn-danger {
+            background: rgba(255, 61, 87, 0.2);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 61, 87, 0.5);
+        }
+
+        .card {
+            background: var(--carbon-surface);
+            border: 1px solid var(--carbon-border);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        /* Dashboard Styles */
+        .dashboard-content {
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-input {
+            flex: 1;
+            background: var(--carbon-surface);
+            border: 1px solid var(--carbon-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 11px;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--terminal-green);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .filter-chip {
+            background: var(--carbon-surface);
+            border: 1px solid var(--carbon-border);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .filter-chip.active {
+            background: rgba(0, 230, 118, 0.2);
+            border-color: var(--terminal-green);
+            color: var(--terminal-green);
+            font-weight: bold;
+        }
+
+        .vm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 12px;
+            padding-bottom: 60px;
+        }
+
+        .vm-card {
+            background: var(--carbon-surface);
+            border: 1px solid var(--carbon-border);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: border 0.3s;
+        }
+
+        .vm-card.running {
+            border-color: rgba(0, 230, 118, 0.5);
+        }
+
+        .vm-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .arch-pill {
+            background: var(--carbon-surface-variant);
+            border: 1px solid var(--carbon-border);
+            color: var(--neon-cyan);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .status-tag {
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-running {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--terminal-green);
+            border: 1px solid rgba(0, 230, 118, 0.4);
+        }
+
+        .status-stopped {
+            background: rgba(155, 163, 184, 0.15);
+            color: var(--text-secondary);
+            border: 1px solid rgba(155, 163, 184, 0.3);
+        }
+
+        .specs-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .spec-pill {
+            background: rgba(30, 35, 48, 0.6);
+            border: 0.5px solid var(--carbon-border);
+            border-radius: 4px;
+            padding: 3px 6px;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .spec-pill b {
+            color: var(--text-primary);
+        }
+
+        .telemetry-box {
+            background: var(--carbon-dark);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+            border-radius: 6px;
+            padding: 6px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+        }
+
+        /* Desktop GUI Mode */
+        .desktop-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: radial-gradient(circle at center, #1b263b, #0f1117);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .desktop-topbar {
+            background: var(--carbon-surface);
+            border-bottom: 1px solid var(--carbon-border);
+            padding: 6px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            z-index: 20;
+        }
+
+        .desktop-canvas {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .window-frame {
+            position: absolute;
+            background: var(--carbon-surface);
+            border: 1px solid var(--carbon-border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .window-titlebar {
+            background: var(--carbon-surface-variant);
+            padding: 6px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            cursor: move;
+            border-bottom: 1px solid var(--carbon-border);
+        }
+
+        .window-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .w-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .w-dot.red { background: var(--accent-red); }
+        .w-dot.amber { background: var(--accent-amber); }
+        .w-dot.green { background: var(--terminal-green); }
+
+        .window-body {
+            flex: 1;
+            background: var(--carbon-dark);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .desktop-taskbar {
+            height: 38px;
+            background: var(--carbon-surface);
+            border-top: 1px solid var(--carbon-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 8px;
+            z-index: 20;
+        }
+
+        .start-btn {
+            background: var(--terminal-green);
+            color: var(--carbon-dark);
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Terminal Window */
+        .terminal-scroll {
+            flex: 1;
+            padding: 8px;
+            overflow-y: auto;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .term-prompt {
+            color: var(--terminal-green);
+            font-weight: bold;
+        }
+
+        .term-input-row {
+            display: flex;
+            align-items: center;
+            background: var(--carbon-surface-variant);
+            padding: 4px 8px;
+            border-top: 1px solid var(--carbon-border);
+        }
+
+        .term-input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 11px;
+            outline: none;
+            padding-left: 6px;
+        }
+
+        /* Keyboard Toolbar */
+        .key-bar {
+            background: var(--carbon-dark);
+            border-top: 0.5px solid var(--carbon-border);
+            padding: 4px 6px;
+            display: flex;
+            gap: 5px;
+            overflow-x: auto;
+        }
+
+        .key-btn {
+            background: var(--carbon-surface-variant);
+            border: 1px solid var(--carbon-border);
+            color: var(--text-primary);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 10px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .key-btn.green {
+            color: var(--terminal-green);
+            border-color: var(--terminal-green);
+            background: rgba(0, 230, 118, 0.15);
+        }
+
+        /* FAB */
+        .fab {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: var(--terminal-green);
+            color: var(--carbon-dark);
+            border: none;
+            border-radius: 28px;
+            padding: 12px 20px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 6px 20px rgba(0, 230, 118, 0.4);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 50;
+        }
+
+        /* Modal Dialog */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 16px;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--carbon-surface);
+            border: 1px solid var(--carbon-border);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--neon-cyan);
+        }
+
+        .text-input, select {
+            background: var(--carbon-dark);
+            border: 1px solid var(--carbon-border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            color: var(--text-primary);
+            font-size: 11px;
+            outline: none;
+        }
+
+        .text-input:focus, select:focus {
+            border-color: var(--terminal-green);
+        }
+
+        /* App Menu */
+        .app-menu {
+            position: absolute;
+            bottom: 44px;
+            left: 8px;
+            background: var(--carbon-surface);
+            border: 1px solid var(--carbon-border);
+            border-radius: 8px;
+            width: 220px;
+            padding: 8px;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 50;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+        }
+
+        .app-menu.open {
+            display: flex;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background: var(--carbon-surface-variant);
+            color: var(--terminal-green);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hypervisor Header -->
+    <header>
+        <div class="header-top">
+            <div class="logo-box">
+                <div class="chip-icon">⚡</div>
+                <div>
+                    <div class="brand-title">
+                        VirtuLinux <span class="badge-kvm">v9.1 pKVM</span>
+                    </div>
+                    <div class="brand-subtitle">Hardware-Accelerated Linux Hypervisor</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="status-pill">
+                    <div class="pulse-dot"></div>
+                    <span id="host-kvm-label">pKVM: ACTIVE</span>
+                </div>
+                <button class="btn" onclick="switchScreen('settings')" style="padding: 6px 10px;">⚙️</button>
+            </div>
+        </div>
+
+        <div class="telemetry-bar">
+            <span>⚡ Host vCPUs: 8c (24%)</span>
+            <span>💾 RAM: 3450MB / 8192MB</span>
+            <span id="active-vms-label" style="color: var(--terminal-green); font-weight: bold;">Active: 1 VM</span>
+        </div>
+    </header>
+
+    <!-- Main Screens Viewport -->
+    <main id="viewport">
+
+        <!-- SCREEN 1: DASHBOARD -->
+        <section id="screen-dashboard" class="screen active">
+            <div class="dashboard-content">
+                <div class="search-row">
+                    <input type="text" id="search-vms" class="search-input" placeholder="Search virtual machines or distros..." oninput="filterVmCards()">
+                    <button class="btn" onclick="toggleLayout()">⊞ Grid</button>
+                </div>
+
+                <div class="filter-row">
+                    <div class="filter-chip active" onclick="setDistroFilter('ALL', this)">All Distros (5)</div>
+                    <div class="filter-chip" onclick="setDistroFilter('RUNNING', this)">Running</div>
+                    <div class="filter-chip" onclick="setDistroFilter('DEBIAN', this)">Ubuntu / Debian</div>
+                    <div class="filter-chip" onclick="setDistroFilter('ARCH', this)">Arch Linux</div>
+                    <div class="filter-chip" onclick="setDistroFilter('ALPINE', this)">Alpine (Sub-2ms)</div>
+                </div>
+
+                <div class="vm-grid" id="vm-cards-container">
+                    <!-- Cards will be dynamically injected here -->
+                </div>
+            </div>
+
+            <button class="fab" onclick="openCreateModal()">+ Deploy VM</button>
+        </section>
+
+        <!-- SCREEN 2: GRAPHICAL DESKTOP GUI -->
+        <section id="screen-display" class="screen">
+            <div class="desktop-container">
+                <div class="desktop-topbar">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="badge-kvm" id="gui-active-distro">ARCH LINUX / VIRGL 3D</span>
+                        <span style="color: var(--neon-cyan); font-weight: bold;" id="gui-fps-counter">60 FPS • 2.1ms</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn" style="padding: 3px 8px; font-size: 10px;" onclick="rebootActiveVm()">↻ Reboot</button>
+                        <button class="btn btn-danger" style="padding: 3px 8px; font-size: 10px;" onclick="stopActiveVm()">⏻ Kill</button>
+                    </div>
+                </div>
+
+                <div class="desktop-canvas" id="desktop-canvas">
+                    <!-- Floating Draggable Window: Terminal -->
+                    <div class="window-frame" id="window-terminal" style="width: 90%; max-width: 440px; height: 260px; top: 30px;">
+                        <div class="window-titlebar">
+                            <div class="window-dots">
+                                <div class="w-dot red" onclick="toggleWindow('terminal')"></div>
+                                <div class="w-dot amber"></div>
+                                <div class="w-dot green"></div>
+                            </div>
+                            <span style="color: var(--text-primary); font-weight: bold;">virtu-terminal ~ bash (VirGL 3D)</span>
+                            <span style="font-size: 10px; color: var(--text-secondary);">60Hz</span>
+                        </div>
+                        <div class="window-body">
+                            <div class="terminal-scroll" id="desktop-term-output">
+                                <div style="color: var(--neon-cyan);">Linux virtulinux 6.8.0-virtulinux #1 SMP PREEMPT_RT x86_64</div>
+                                <div style="color: var(--text-secondary);">Welcome to Arch Linux (Rolling 2024) with Hyprland Desktop</div>
+                                <div style="color: var(--text-secondary);">VirGL 3D Hardware OpenGL ES 3.2 Passthrough Activated (~2.1ms)</div>
+                                <div style="color: var(--terminal-green); margin-top: 6px;">Type 'neofetch', 'uname', 'htop', 'ls', or 'cat welcome.txt'</div>
+                            </div>
+                            <div class="term-input-row">
+                                <span class="term-prompt">user@virtu:~$</span>
+                                <input type="text" id="desktop-cmd-input" class="term-input" placeholder="enter bash command..." onkeydown="handleTermKey(event, 'desktop')">
+                                <button class="btn btn-primary" style="padding: 4px 8px; font-size: 10px;" onclick="executeDesktopCommand()">↵</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Floating Window: File Manager -->
+                    <div class="window-frame" id="window-files" style="width: 85%; max-width: 380px; height: 220px; top: 180px; display: none;">
+                        <div class="window-titlebar">
+                            <div class="window-dots">
+                                <div class="w-dot red" onclick="toggleWindow('files')"></div>
+                                <div class="w-dot amber"></div>
+                                <div class="w-dot green"></div>
+                            </div>
+                            <span style="color: var(--text-primary); font-weight: bold;">File Manager (/home/user)</span>
+                            <span style="font-size: 10px; color: var(--neon-cyan);">ext4</span>
+                        </div>
+                        <div class="window-body" style="padding: 8px; overflow-y: auto;">
+                            <div style="font-size: 11px; display: flex; flex-direction: column; gap: 6px;" id="file-list-view">
+                                <div style="display: flex; justify-content: space-between; cursor: pointer; color: var(--neon-cyan);" onclick="runCommand('cat welcome.txt')">
+                                    <span>📄 welcome.txt</span><span>1.2 KB</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; cursor: pointer; color: var(--terminal-green);" onclick="runCommand('cat benchmark.sh')">
+                                    <span>⚙️ benchmark.sh</span><span>520 B</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; cursor: pointer; color: var(--neon-cyan);" onclick="runCommand('ls /mnt/shared_android')">
+                                    <span>📁 /mnt/shared_android (Host Share)</span><span>&lt;DIR&gt;</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Start Menu Pop-up -->
+                    <div class="app-menu" id="start-menu">
+                        <div style="font-size: 10px; font-weight: bold; color: var(--neon-cyan); padding: 4px 6px;">APPLICATIONS</div>
+                        <div class="menu-item" onclick="toggleWindow('terminal')">📟 Terminal (bash)</div>
+                        <div class="menu-item" onclick="toggleWindow('files')">📁 File Manager</div>
+                        <div class="menu-item" onclick="runCommand('htop')">📊 System Monitor</div>
+                        <div class="menu-item" onclick="runCommand('neofetch')">⚡ Neofetch Info</div>
+                    </div>
+                </div>
+
+                <!-- Desktop Bottom Taskbar -->
+                <div class="desktop-taskbar">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button class="start-btn" onclick="toggleStartMenu()">⚡ Virtu</button>
+                        <button class="key-btn" onclick="toggleWindow('terminal')">Terminal</button>
+                        <button class="key-btn" onclick="toggleWindow('files')">Files</button>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center; font-size: 10px; color: var(--text-secondary);">
+                        <span>📶 10 Gbps</span>
+                        <span>20:45 UTC</span>
+                    </div>
+                </div>
+
+                <!-- Virtual Keyboard Toolbar -->
+                <div class="key-bar">
+                    <button class="key-btn green" onclick="runCommand('^C')">Ctrl+C</button>
+                    <button class="key-btn green" onclick="runCommand('neofetch')">neofetch</button>
+                    <button class="key-btn" onclick="runCommand('htop')">htop</button>
+                    <button class="key-btn" onclick="runCommand('ls -la')">ls -la</button>
+                    <button class="key-btn" onclick="runCommand('df -h')">df -h</button>
+                    <button class="key-btn" onclick="runCommand('free -m')">free -m</button>
+                    <button class="key-btn" onclick="runCommand('ip addr')">ip addr</button>
+                    <button class="key-btn" onclick="runCommand('clear')">clear</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 3: TTY CONSOLE -->
+        <section id="screen-terminal" class="screen">
+            <div style="padding: 10px; border-bottom: 1px solid var(--carbon-border); display: flex; justify-content: space-between; align-items: center; background: var(--carbon-surface);">
+                <div>
+                    <div style="font-size: 12px; font-weight: bold;">ttyS0 Serial Console (Direct Kernel)</div>
+                    <div style="font-size: 10px; color: var(--neon-cyan);">115200 Baud 8N1 • PREEMPT_RT Active</div>
+                </div>
+                <button class="btn btn-primary" style="padding: 4px 8px; font-size: 10px;" onclick="runCommand('clear')">Clear</button>
+            </div>
+            <div class="terminal-scroll" id="serial-term-output" style="background: var(--carbon-dark); flex: 1;">
+                <div style="color: var(--neon-cyan);">[  0.000000] Linux version 6.8.0-virtulinux (SMP PREEMPT_RT)</div>
+                <div style="color: var(--text-secondary);">[  0.012000] KVM: Hardware virtualization active via host /dev/kvm</div>
+                <div style="color: var(--text-secondary);">[  0.045000] VirtIO GPU virgl3d: OpenGL ES 3.2 60 FPS driver bound</div>
+                <div style="color: var(--terminal-green); margin-top: 6px;">virtulinux login: user (automatic login)</div>
+            </div>
+            <div class="term-input-row">
+                <span class="term-prompt">user@virtulinux:~$</span>
+                <input type="text" id="serial-cmd-input" class="term-input" placeholder="run command..." onkeydown="handleTermKey(event, 'serial')">
+                <button class="btn btn-primary" onclick="executeSerialCommand()">Run</button>
+            </div>
+        </section>
+
+        <!-- SCREEN 4: ISO LIBRARY -->
+        <section id="screen-iso" class="screen">
+            <div style="padding: 14px; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-size: 15px; font-weight: bold;">Verified ISO Catalog</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">Boot live Linux environments instantly or install to disk</div>
+                    </div>
+                    <button class="btn btn-cyan" onclick="openCreateModal()">+ Custom .ISO</button>
+                </div>
+
+                <div id="iso-list-container" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- ISO items dynamically rendered -->
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 5: STORAGE MANAGER -->
+        <section id="screen-storage" class="screen">
+            <div style="padding: 14px; overflow-y: auto;">
+                <div class="card">
+                    <div style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">Hypervisor Storage Pool (VirtIO-BLK)</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">Persistent QCOW2 sparse images with copy-on-write snapshots.</div>
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 4px;">
+                        <span>Allocated: 24 GB</span>
+                        <span style="color: var(--neon-cyan);">Capacity: 128 GB (18% Used)</span>
+                    </div>
+                    <div style="height: 6px; background: var(--carbon-surface-variant); border-radius: 3px; overflow: hidden;">
+                        <div style="width: 18%; height: 100%; background: var(--neon-cyan);"></div>
+                    </div>
+                </div>
+
+                <div style="font-size: 12px; font-weight: bold; color: var(--neon-cyan); margin: 14px 0 8px 0;">HOST ↔ GUEST SHARED FOLDER</div>
+                <div class="card" style="border-color: rgba(0, 229, 255, 0.4);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 12px; font-weight: bold; color: var(--neon-cyan);">/mnt/shared_android (VirtIO-9P)</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">Zero-copy sync between Android /Downloads and Linux guest</div>
+                        </div>
+                        <button class="btn btn-cyan" onclick="alert('Host folder synchronized with Linux guest filesystem.')">Sync Files</button>
+                    </div>
+                </div>
+
+                <div style="font-size: 12px; font-weight: bold; color: var(--neon-cyan); margin: 14px 0 8px 0;">VIRTUAL DISK IMAGES</div>
+                <div id="storage-disks-container" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Disk images rendered -->
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 6: HYPERVISOR SETTINGS -->
+        <section id="screen-settings" class="screen">
+            <div style="padding: 14px; overflow-y: auto;">
+                <div style="font-size: 15px; font-weight: bold; margin-bottom: 12px;">Hypervisor & Driver Tuning</div>
+
+                <div class="card">
+                    <div style="font-size: 12px; font-weight: bold; color: var(--neon-cyan); margin-bottom: 8px;">HARDWARE ACCELERATION</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--carbon-border);">
+                        <div>
+                            <div style="font-size: 11px; font-weight: bold;">pKVM Hardware Virtualization</div>
+                            <div style="font-size: 9px; color: var(--text-secondary);">Direct host ARM64 /dev/kvm cycle execution</div>
+                        </div>
+                        <input type="checkbox" checked style="accent-color: var(--terminal-green); transform: scale(1.3);">
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--carbon-border);">
+                        <div>
+                            <div style="font-size: 11px; font-weight: bold;">VirGL 3D GPU Passthrough</div>
+                            <div style="font-size: 9px; color: var(--text-secondary);">OpenGL ES 3.2 60 FPS hardware accelerated pipeline</div>
+                        </div>
+                        <input type="checkbox" checked style="accent-color: var(--terminal-green); transform: scale(1.3);">
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0;">
+                        <div>
+                            <div style="font-size: 11px; font-weight: bold;">PREEMPT_RT Realtime Scheduler</div>
+                            <div style="font-size: 9px; color: var(--text-secondary);">1000Hz low-latency kernel dispatch for sub-3ms response</div>
+                        </div>
+                        <input type="checkbox" checked style="accent-color: var(--terminal-green); transform: scale(1.3);">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div style="font-size: 12px; font-weight: bold; color: var(--neon-cyan); margin-bottom: 8px;">PORT FORWARDING MATRIX</div>
+                    <div style="font-size: 10px; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between;"><span>SSH Shell:</span><b>Host 2222 ➜ Guest :22</b></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Web HTTP:</span><b>Host 8080 ➜ Guest :80</b></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Dev Server:</span><b>Host 3000 ➜ Guest :3000</b></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav>
+        <button class="nav-btn active" onclick="switchScreen('dashboard')">
+            <span class="icon">⊞</span>
+            <span>Dashboard</span>
+        </button>
+        <button class="nav-btn" onclick="switchScreen('display')">
+            <span class="icon">🖥️</span>
+            <span>Desktop GUI</span>
+        </button>
+        <button class="nav-btn" onclick="switchScreen('terminal')">
+            <span class="icon">📟</span>
+            <span>Console</span>
+        </button>
+        <button class="nav-btn" onclick="switchScreen('iso')">
+            <span class="icon">💿</span>
+            <span>ISOs</span>
+        </button>
+        <button class="nav-btn" onclick="switchScreen('storage')">
+            <span class="icon">📁</span>
+            <span>Storage</span>
+        </button>
+    </nav>
+
+    <!-- Create VM Dialog Modal -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 16px; font-weight: bold;">Deploy Virtual Machine</div>
+                <button class="btn" onclick="closeCreateModal()" style="padding: 4px 8px;">✕</button>
+            </div>
+
+            <div class="input-group">
+                <span class="input-label">INSTANCE NAME</span>
+                <input type="text" id="new-vm-name" class="text-input" value="Ubuntu 24.04 Workstation">
+            </div>
+
+            <div class="input-group">
+                <span class="input-label">SELECT LINUX DISTRO</span>
+                <select id="new-vm-distro" class="text-input" onchange="onDistroSelect(this.value)">
+                    <option value="ubuntu">Ubuntu 24.04 LTS (Noble Numbat) - GNOME</option>
+                    <option value="arch" selected>Arch Linux (Rolling) - Hyprland</option>
+                    <option value="alpine">Alpine Linux 3.20 (Micro Kernel Sub-2ms)</option>
+                    <option value="debian">Debian 12 Bookworm (XFCE Lightweight)</option>
+                    <option value="kali">Kali Linux 2024.3 (Security Tools)</option>
+                    <option value="fedora">Fedora 40 (PipeWire / Wayland)</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="input-group">
+                    <span class="input-label">VCPU CORES</span>
+                    <select id="new-vm-cores" class="text-input">
+                        <option value="1">1 Core</option>
+                        <option value="2" selected>2 Cores</option>
+                        <option value="4">4 Cores</option>
+                        <option value="8">8 Cores</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <span class="input-label">RAM ALLOCATION</span>
+                    <select id="new-vm-ram" class="text-input">
+                        <option value="1024">1024 MB (1 GB)</option>
+                        <option value="2048" selected>2048 MB (2 GB)</option>
+                        <option value="4096">4096 MB (4 GB)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <span class="input-label">GPU ACCELERATION</span>
+                <select id="new-vm-gpu" class="text-input">
+                    <option value="VIRGL_3D">VirGL 3D (OpenGL ES 3.2 Passthrough)</option>
+                    <option value="VIRTIO_GPU">VirtIO-GPU Standard</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary" style="margin-top: 8px; justify-content: center;" onclick="deployVmFromModal()">Deploy Linux Instance</button>
+        </div>
+    </div>
+
+    <!-- Application Script Engine -->
+    <script>
+        // State
+        const state = {
+            activeDistroFilter: 'ALL',
+            activeVmId: 'arch-1',
+            vms: [
+                {
+                    id: 'arch-1',
+                    name: 'Arch Linux Hyprland Workstation',
+                    distro: 'Arch Linux',
+                    family: 'ARCH',
+                    arch: 'x86_64',
+                    cores: 4,
+                    ram: 3072,
+                    disk: '25 GB (QCOW2)',
+                    gpu: 'VIRGL_3D',
+                    status: 'RUNNING',
+                    uptime: 142,
+                    cpu: 14,
+                    ramUsed: 980
+                },
+                {
+                    id: 'alpine-1',
+                    name: 'Alpine Micro Kernel (Low Latency)',
+                    distro: 'Alpine Linux 3.20',
+                    family: 'ALPINE',
+                    arch: 'x86_64',
+                    cores: 2,
+                    ram: 1024,
+                    disk: '8 GB (QCOW2)',
+                    gpu: 'VIRGL_3D',
+                    status: 'STOPPED',
+                    uptime: 0,
+                    cpu: 0,
+                    ramUsed: 0
+                },
+                {
+                    id: 'ubuntu-1',
+                    name: 'Ubuntu 24.04 LTS (Noble)',
+                    distro: 'Ubuntu 24.04',
+                    family: 'DEBIAN',
+                    arch: 'x86_64',
+                    cores: 4,
+                    ram: 4096,
+                    disk: '30 GB (RAW)',
+                    gpu: 'VIRGL_3D',
+                    status: 'STOPPED',
+                    uptime: 0,
+                    cpu: 0,
+                    ramUsed: 0
+                },
+                {
+                    id: 'debian-1',
+                    name: 'Debian 12 Bookworm XFCE',
+                    distro: 'Debian 12',
+                    family: 'DEBIAN',
+                    arch: 'x86_64',
+                    cores: 2,
+                    ram: 2048,
+                    disk: '16 GB (QCOW2)',
+                    gpu: 'VIRTIO_GPU',
+                    status: 'STOPPED',
+                    uptime: 0,
+                    cpu: 0,
+                    ramUsed: 0
+                },
+                {
+                    id: 'kali-1',
+                    name: 'Kali Security Auditing Suite',
+                    distro: 'Kali Linux',
+                    family: 'DEBIAN',
+                    arch: 'x86_64',
+                    cores: 4,
+                    ram: 4096,
+                    disk: '30 GB (QCOW2)',
+                    gpu: 'VIRGL_3D',
+                    status: 'STOPPED',
+                    uptime: 0,
+                    cpu: 0,
+                    ramUsed: 0
+                }
+            ],
+            isos: [
+                { name: 'Ubuntu 24.04.1 Desktop AMD64', file: 'ubuntu-24.04.1-desktop-amd64.iso', size: '4.6 GB', arch: 'x86_64', de: 'GNOME 46' },
+                { name: 'Arch Linux Rolling 2024', file: 'archlinux-2024.09.01-x86_64.iso', size: '980 MB', arch: 'x86_64', de: 'Hyprland' },
+                { name: 'Alpine Linux Standard 3.20', file: 'alpine-standard-3.20.3-x86_64.iso', size: '215 MB', arch: 'x86_64', de: 'Musl Micro' },
+                { name: 'Debian 12.7 Live XFCE', file: 'debian-live-12.7.0-amd64-xfce.iso', size: '2.8 GB', arch: 'x86_64', de: 'XFCE 4.18' },
+                { name: 'Kali Linux 2024.3 Live', file: 'kali-linux-2024.3-live-amd64.iso', size: '3.9 GB', arch: 'x86_64', de: 'XFCE Stealth' }
+            ]
+        };
+
+        // Navigation
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+            const target = document.getElementById('screen-' + screenId);
+            if (target) target.classList.add('active');
+
+            const activeBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b =>
+                b.getAttribute('onclick').includes(screenId)
+            );
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        // Render VM Cards
+        function renderVmCards() {
+            const container = document.getElementById('vm-cards-container');
+            const search = document.getElementById('search-vms').value.toLowerCase();
+
+            const filtered = state.vms.filter(vm => {
+                const matchesSearch = vm.name.toLowerCase().includes(search) || vm.distro.toLowerCase().includes(search);
+                const matchesFilter = state.activeDistroFilter === 'ALL' ||
+                                      (state.activeDistroFilter === 'RUNNING' && vm.status === 'RUNNING') ||
+                                      vm.family === state.activeDistroFilter;
+                return matchesSearch && matchesFilter;
+            });
+
+            container.innerHTML = filtered.map(vm => {
+                const isRunning = vm.status === 'RUNNING';
+                return `
+                    <div class="vm-card ${isRunning ? 'running' : ''}">
+                        <div class="vm-header">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="arch-pill">${vm.arch}</span>
+                                <span style="font-size: 11px; font-weight: bold; color: var(--neon-cyan);">${vm.distro}</span>
+                            </div>
+                            <span class="status-tag ${isRunning ? 'status-running' : 'status-stopped'}">
+                                ${isRunning ? '● RUNNING' : '○ STOPPED'}
+                            </span>
+                        </div>
+                        <div style="font-size: 14px; font-weight: bold;">${vm.name}</div>
+                        <div class="specs-row">
+                            <span class="spec-pill">CPU: <b>${vm.cores}c</b></span>
+                            <span class="spec-pill">RAM: <b>${vm.ram}MB</b></span>
+                            <span class="spec-pill">Disk: <b>${vm.disk}</b></span>
+                            <span class="spec-pill">GPU: <b>${vm.gpu}</b></span>
+                        </div>
+                        ${isRunning ? `
+                            <div class="telemetry-box">
+                                <span style="color: var(--terminal-green); font-weight: bold;">CPU: ${vm.cpu}%</span>
+                                <span style="color: var(--neon-cyan); font-weight: bold;">RAM: ${vm.ramUsed}MB</span>
+                                <span>Uptime: ${Math.floor(vm.uptime / 60)}m ${vm.uptime % 60}s</span>
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; gap: 8px; margin-top: 4px;">
+                            ${isRunning ? `
+                                <button class="btn btn-primary" style="flex: 1;" onclick="openDisplayForVm('${vm.id}')">🖥️ Display</button>
+                                <button class="btn" style="flex: 1;" onclick="openConsoleForVm('${vm.id}')">📟 Console</button>
+                                <button class="btn btn-danger" onclick="toggleVmPower('${vm.id}')">⏻</button>
+                            ` : `
+                                <button class="btn btn-primary" style="flex: 1;" onclick="toggleVmPower('${vm.id}')">▶ Start VM</button>
+                                <button class="btn" onclick="openConsoleForVm('${vm.id}')">Config</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Update header count
+            const activeCount = state.vms.filter(v => v.status === 'RUNNING').length;
+            document.getElementById('active-vms-label').textContent = `Active: ${activeCount} VM${activeCount !== 1 ? 's' : ''}`;
+        }
+
+        function setDistroFilter(filter, el) {
+            state.activeDistroFilter = filter;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            renderVmCards();
+        }
+
+        function filterVmCards() {
+            renderVmCards();
+        }
+
+        function toggleVmPower(vmId) {
+            const vm = state.vms.find(v => v.id === vmId);
+            if (!vm) return;
+            if (vm.status === 'RUNNING') {
+                vm.status = 'STOPPED';
+                vm.uptime = 0;
+            } else {
+                vm.status = 'RUNNING';
+                vm.cpu = 12;
+                vm.ramUsed = Math.floor(vm.ram * 0.35);
+                state.activeVmId = vm.id;
+            }
+            renderVmCards();
+        }
+
+        function openDisplayForVm(vmId) {
+            state.activeVmId = vmId;
+            const vm = state.vms.find(v => v.id === vmId);
+            if (vm) {
+                document.getElementById('gui-active-distro').textContent = `${vm.distro.toUpperCase()} / ${vm.gpu}`;
+            }
+            switchScreen('display');
+        }
+
+        function openConsoleForVm(vmId) {
+            state.activeVmId = vmId;
+            switchScreen('terminal');
+        }
+
+        function rebootActiveVm() {
+            alert('Rebooting virtual machine: sending ACPI reset...');
+        }
+
+        function stopActiveVm() {
+            const vm = state.vms.find(v => v.id === state.activeVmId);
+            if (vm) {
+                vm.status = 'STOPPED';
+                renderVmCards();
+                switchScreen('dashboard');
+            }
+        }
+
+        // Window Management
+        function toggleWindow(type) {
+            const win = document.getElementById('window-' + type);
+            if (!win) return;
+            win.style.display = win.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function toggleStartMenu() {
+            const menu = document.getElementById('start-menu');
+            menu.classList.toggle('open');
+        }
+
+        // Terminal Command Processing
+        function runCommand(cmd) {
+            const deskOut = document.getElementById('desktop-term-output');
+            const serialOut = document.getElementById('serial-term-output');
+
+            const execute = (outEl) => {
+                const promptLine = document.createElement('div');
+                promptLine.style.color = '#00E676';
+                promptLine.style.marginTop = '4px';
+                promptLine.textContent = 'user@virtulinux:~$ ' + cmd;
+                outEl.appendChild(promptLine);
+
+                const resLine = document.createElement('div');
+                resLine.style.color = '#F0F4FC';
+                resLine.style.whiteSpace = 'pre-wrap';
+
+                if (cmd === '^C') {
+                    resLine.textContent = '^C';
+                } else if (cmd === 'clear') {
+                    outEl.innerHTML = '<div style="color: var(--neon-cyan);">Screen cleared. VirtuLinux terminal ready.</div>';
+                    return;
+                } else if (cmd === 'neofetch') {
+                    resLine.style.color = '#00E5FF';
+                    resLine.textContent = `
+          .o+            user@virtulinux
+         \`ooo/           ---------------
+        \`+oooo:          OS: Arch Linux x86_64
+       \`+oooooo:         Host: VirtuLinux QEMU/KVM Hypervisor
+       -+oooooo+:        Kernel: 6.8.0-virtulinux (PREEMPT_RT)
+     \`/:-:++oooo+:       Packages: 842 (pacman)
+    \`/++++/+++++++:      Shell: bash 5.2.26
+   \`/++++++++++++++:     DE: Hyprland (Wayland)
+  \`/+++ooooooooooooo/\`   GPU: VirGL 3D (OpenGL ES 3.2 Passthrough)
+ ./ooosssso++osssssso+\`  vCPUs: 4 cores @ 1000Hz (<2.4ms latency)
+                    Memory: 980MiB / 3072MiB`;
+                } else if (cmd === 'uname' || cmd === 'uname -a') {
+                    resLine.textContent = 'Linux virtulinux 6.8.0-virtulinux #1 SMP PREEMPT_RT x86_64 GNU/Linux';
+                } else if (cmd === 'ls' || cmd === 'ls -la') {
+                    resLine.textContent = 'drwxr-xr-x 4 user user 4096 Sep 25 20:45 .\ndrwxr-xr-x 3 root root 4096 Sep 25 20:30 ..\n-rw-r--r-- 1 user user 1240 Sep 25 20:35 welcome.txt\n-rwxr-xr-x 1 user user  520 Sep 25 20:40 benchmark.sh\ndrwxr-xr-x 2 user user 4096 Sep 25 20:42 /mnt/shared_android';
+                } else if (cmd.startsWith('cat welcome.txt')) {
+                    resLine.textContent = `=====================================================
+Welcome to VirtuLinux - High-Performance OS Hypervisor!
+=====================================================
+Active Features:
+- VirGL 3D Hardware Accelerated GPU (OpenGL ES 3.2)
+- Low Latency PREEMPT_RT Realtime Kernel Task Scheduler
+- VirtIO-Net low-overhead network stack
+- Persistent QCOW2 virtual storage
+- Host-to-guest shared folder at /mnt/shared_android`;
+                } else if (cmd.startsWith('cat benchmark.sh')) {
+                    resLine.textContent = `#!/bin/bash\necho "[*] Running matrix multiplication kernel test..."\necho "[✓] Score: 9840 MFLOPS (Near-native JIT throughput)"`;
+                } else if (cmd === 'free' || cmd === 'free -m') {
+                    resLine.textContent = `               total        used        free      shared  buff/cache   available\nMem:            3072         980        1540          24         552        1980\nSwap:           2048           0        2048`;
+                } else if (cmd === 'df' || cmd === 'df -h') {
+                    resLine.textContent = `Filesystem      Size  Used Avail Use% Mounted on\n/dev/vda1        25G  4.2G   20G  18% /\nvirtfs_shared   128G   24G  104G  19% /mnt/shared_android`;
+                } else if (cmd === 'ip addr') {
+                    resLine.textContent = `1: lo: <LOOPBACK,UP> mtu 65536 inet 127.0.0.1/8\n2: eth0: <BROADCAST,UP> mtu 1500 inet 192.168.122.42/24 (VirtIO-Net 10Gbps)`;
+                } else if (cmd === 'htop') {
+                    resLine.textContent = `  PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND\n    1 root      20   0  168540  12480   8400 S   0.0   0.4   0:01.42 systemd\n  112 user      20   0  324500  48200  32000 S   2.4   2.1   0:04.12 Hyprland\n  230 user      20   0   15200   7200   4800 S   0.5   0.3   0:00.90 bash`;
+                } else {
+                    resLine.textContent = `bash: ${cmd}: command executed successfully.`;
+                }
+
+                outEl.appendChild(resLine);
+                outEl.scrollTop = outEl.scrollHeight;
+            };
+
+            execute(deskOut);
+            execute(serialOut);
+        }
+
+        function handleTermKey(e, type) {
+            if (e.key === 'Enter') {
+                if (type === 'desktop') executeDesktopCommand();
+                else executeSerialCommand();
+            }
+        }
+
+        function executeDesktopCommand() {
+            const input = document.getElementById('desktop-cmd-input');
+            if (!input.value.trim()) return;
+            runCommand(input.value.trim());
+            input.value = '';
+        }
+
+        function executeSerialCommand() {
+            const input = document.getElementById('serial-cmd-input');
+            if (!input.value.trim()) return;
+            runCommand(input.value.trim());
+            input.value = '';
+        }
+
+        // Render ISO Library
+        function renderIsoList() {
+            const container = document.getElementById('iso-list-container');
+            container.innerHTML = state.isos.map(iso => `
+                <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 13px; font-weight: bold;">💿 ${iso.name}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                            ${iso.file} • ${iso.size} • ${iso.arch} • Desktop: ${iso.de}
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="bootIsoLive('${iso.name}')">⚡ Boot Live</button>
+                </div>
+            `).join('');
+        }
+
+        function bootIsoLive(isoName) {
+            alert(`Booting ${isoName} directly into RAM overlayfs...`);
+            switchScreen('display');
+        }
+
+        // Render Storage Disks
+        function renderStorageDisks() {
+            const container = document.getElementById('storage-disks-container');
+            container.innerHTML = state.vms.map(vm => `
+                <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 12px; font-weight: bold;">💾 ${vm.name.replace(/\\s+/g, '_').toLowerCase()}.qcow2</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">Target: /dev/vda • Format: QCOW2 • Cache: writeback</div>
+                    </div>
+                    <span style="color: var(--terminal-green); font-size: 11px; font-weight: bold;">${vm.disk}</span>
+                </div>
+            `).join('');
+        }
+
+        // Modal Handlers
+        function openCreateModal() {
+            document.getElementById('create-modal').classList.add('open');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('create-modal').classList.remove('open');
+        }
+
+        function deployVmFromModal() {
+            const name = document.getElementById('new-vm-name').value;
+            const distro = document.getElementById('new-vm-distro').value;
+            const cores = parseInt(document.getElementById('new-vm-cores').value);
+            const ram = parseInt(document.getElementById('new-vm-ram').value);
+            const gpu = document.getElementById('new-vm-gpu').value;
+
+            state.vms.unshift({
+                id: 'vm-' + Date.now(),
+                name: name || 'Custom Linux Instance',
+                distro: distro.toUpperCase(),
+                family: distro === 'arch' ? 'ARCH' : distro === 'alpine' ? 'ALPINE' : 'DEBIAN',
+                arch: 'x86_64',
+                cores: cores,
+                ram: ram,
+                disk: '20 GB (QCOW2)',
+                gpu: gpu,
+                status: 'RUNNING',
+                uptime: 1,
+                cpu: 8,
+                ramUsed: Math.floor(ram * 0.3)
+            });
+
+            closeCreateModal();
+            renderVmCards();
+            switchScreen('dashboard');
+        }
+
+        // Live Telemetry Loop (every 1 second)
+        setInterval(() => {
+            state.vms.forEach(vm => {
+                if (vm.status === 'RUNNING') {
+                    vm.uptime++;
+                    vm.cpu = Math.floor(8 + Math.random() * 14);
+                    vm.ramUsed = Math.floor(vm.ram * 0.32 + Math.random() * 50);
+                }
+            });
+            // Update active GUI telemetry if running
+            const activeVm = state.vms.find(v => v.id === state.activeVmId && v.status === 'RUNNING');
+            if (activeVm) {
+                const fps = 58 + Math.floor(Math.random() * 5);
+                const lat = (2.1 + Math.random() * 0.5).toFixed(1);
+                document.getElementById('gui-fps-counter').textContent = `${fps} FPS • ${lat}ms`;
+            }
+            renderVmCards();
+        }, 1000);
+
+        // Initialize
+        renderVmCards();
+        renderIsoList();
+        renderStorageDisks();
+    </script>
+</body>
+</html>

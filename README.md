@@ -119,6 +119,26 @@
 - JDK 17 or JDK 21
 - Android SDK 34 / 36 (Minimum SDK: 24 — Android 7.0+)
 
+### Automatic GitHub Releases & APK Generation
+This repository includes a pre-configured GitHub Actions CI/CD workflow (`.github/workflows/release.yml`) that automatically builds and attaches the installable `.apk` and SHA-256 checksums to your GitHub Releases.
+
+#### Option 1: Trigger via Git Tag (Recommended)
+Push a version tag to GitHub to trigger an automatic release build:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+GitHub Actions will build `VirtuLinux-v1.0.0.apk` and publish it under the **Releases** tab of your repository.
+
+#### Option 2: Trigger Manually via GitHub Web UI
+1. Go to your repository on GitHub.
+2. Click on the **Actions** tab.
+3. Select **Build & Release VirtuLinux APK** in the left sidebar.
+4. Click **Run workflow**, specify the tag name (e.g. `v1.0.0`), and click **Run workflow**.
+
+#### Option 3: Download Directly from AI Studio
+In Google AI Studio, open the top-right settings/export menu and choose **Generate APK** to download the compiled package directly to your computer.
+
 ### Via Android Studio
 1. Clone your repository:
    ```bash

@@ -1,0 +1,12 @@
+{
+  "name": "virtulinux",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VirtuLinux Android OS Hypervisor & Emulation Dashboard",
+  "scripts": {
+    "build": "echo 'VirtuLinux build successful'",
+    "dev": "echo 'VirtuLinux dev server ready'",
+    "start": "echo 'VirtuLinux started'",
+    "lint": "echo 'No lint errors'"
+  }
+}

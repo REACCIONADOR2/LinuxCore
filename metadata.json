@@ -1,0 +1,6 @@
+{
+  "name": "VirtuLinux",
+  "description": "Advanced Linux VM emulator and hypervisor dashboard with low-latency graphics, hardware acceleration, ISO boot support, and persistent virtual storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
